@@ -25,6 +25,8 @@
 #include "Camera.h"
 #include "Terrain.h"
 
+#include "Skybox.h"
+
 
 // Window size
 int WIN_W = 1280;
@@ -137,7 +139,6 @@ int main() {
     }
     glfwMakeContextCurrent(gWindow);
 
-    // Load GL functions with GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cerr << "ERROR: Failed to initialize GLAD\n";
         return -1;
@@ -148,108 +149,156 @@ int main() {
     glfwSetCursorPosCallback(gWindow, mouse_callback);
     glfwSetKeyCallback(gWindow, key_callback);
 
-    // set OpenGL state
+    // GL state
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
 
-    // Print renderer info
     std::cout << "Renderer: " << glGetString(GL_RENDERER) << "\n";
-    std::cout << "OpenGL version: " << glGetString(GL_VERSION) << "\n";
+    std::cout << "OpenGL: " << glGetString(GL_VERSION) << "\n";
 
-    // ---------- Create / load shaders ----------
+    // ---------- Load / compile shaders ----------
     Shader terrainShader;
-    bool ok = terrainShader.LoadFromFiles(
+    bool okTerrainShader = terrainShader.LoadFromFiles(
         GetResourcePath("resources/shaders/terrain.vert"),
         GetResourcePath("resources/shaders/terrain.frag")
     );
 
-    if (!ok) {
-        std::cerr << "ERROR: Failed to load terrain shader files. Check paths.\n";
-        // continue so user can fix
-    }
+    Shader skyShader;
+    bool okSkyShader = skyShader.LoadFromFiles(
+        GetResourcePath("resources/shaders/skybox.vert"),
+        GetResourcePath("resources/shaders/skybox.frag")
+    );
 
-    // ---------- Load terrain ----------
+    // ---------- Load Terrain ----------
     Terrain terrain;
-    // heightmap and albedo textures: adjust paths to where you placed them in the repo
-    const std::string heightmapPath = "resources/textures/heightmap.png";
-    const std::string terrainTexPath = "resources/textures/grass.jpg";
-
-    if (!terrain.Load(
+    bool okTerrain = terrain.Load(
         GetResourcePath("resources/textures/heightmap.png"),
         GetResourcePath("resources/textures/grass.jpg"),
         25.0f, 200.0f
-    )) {
-        std::cerr << "ERROR: Terrain failed to load. Make sure files exist at:\n"
-            << "  " << heightmapPath << "\n"
-            << "  " << terrainTexPath << "\n";
-        // don't exit — give debugging info
-    }
+    );
 
-    // Place terrain a bit lower if needed
-    terrain.model = glm::translate(terrain.model, glm::vec3(0.0f, -1.0f, 0.0f));
+    // ---------- Load Skybox ----------
+    Skybox sky;
+    std::vector<std::string> faces = {
+        GetResourcePath("resources/skybox/right.png"),
+        GetResourcePath("resources/skybox/left.png"),
+        GetResourcePath("resources/skybox/top.png"),
+        GetResourcePath("resources/skybox/bottom.png"),
+        GetResourcePath("resources/skybox/front.png"),
+        GetResourcePath("resources/skybox/back.png")
+    };
+    sky.Load(faces);
 
-    // ---------- Camera initial settings ----------
+    // ---------- Camera ----------
     gCamera.mode = CamMode::AUTO;
-    // initial cam pos is set inside camera default; you can override:
     gCamera.pos = glm::vec3(0.0f, 30.0f, 80.0f);
 
     // timing
     auto startTime = std::chrono::high_resolution_clock::now();
     lastFrameTime = 0.0f;
 
-    // Main loop
+    // Optional: black 1×1 texture for stars (fallback)
+    unsigned int blackTex;
+    {
+        unsigned char px[3] = { 0, 0, 0 };
+        glGenTextures(1, &blackTex);
+        glBindTexture(GL_TEXTURE_2D, blackTex);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1, 1, 0, GL_RGB, GL_UNSIGNED_BYTE, px);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+
+    // ---------- Main loop ----------
     while (!glfwWindowShouldClose(gWindow)) {
-        // timing
         auto now = std::chrono::high_resolution_clock::now();
         float t = std::chrono::duration<float>(now - startTime).count();
         float delta = t - lastFrameTime;
         lastFrameTime = t;
         globalTime = t;
 
-        // handle input
         process_free_camera_input(delta);
-
-        // auto camera updates (if auto)
-        if (gCamera.mode == CamMode::AUTO) {
+        if (gCamera.mode == CamMode::AUTO)
             gCamera.UpdateAuto(globalTime);
-        }
 
         // clear
         glViewport(0, 0, WIN_W, WIN_H);
-        glClearColor(0.53f, 0.80f, 0.92f, 1.0f); // sky-like background
+        glClearColor(0.53f, 0.80f, 0.92f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // prepare matrices
+        // prepare matrices once
         float aspect = (float)WIN_W / (float)WIN_H;
         glm::mat4 view = gCamera.GetViewMatrix();
         glm::mat4 proj = gCamera.GetProjection(aspect);
 
-        // ---------- Render terrain ----------
-        terrainShader.Use();
-        terrainShader.SetMat4("uView", view);
-        terrainShader.SetMat4("uProj", proj);
-        terrainShader.SetMat4("uModel", terrain.model);
+        // ---------- ?? Day/Night cycle calculations ----------
+        const float dayLength = 60.0f; // seconds per full cycle
+        float cycle = fmod(globalTime / dayLength, 1.0f);
+        float sunAngle = cycle * glm::two_pi<float>();
 
-        // simple moving sun position to show dynamic lighting (optional)
-        glm::vec3 sunPos = glm::vec3(100.0f * cos(globalTime * 0.1f), 80.0f + 50.0f * sin(globalTime * 0.1f), 60.0f * sin(globalTime * 0.1f));
-        terrainShader.SetVec3("lightPos", sunPos);
-        terrainShader.SetVec3("viewPos", gCamera.pos);
-        terrainShader.SetVec3("lightColor", glm::vec3(1.0f, 0.98f, 0.9f));
-        terrainShader.SetVec3("ambientColor", glm::vec3(0.25f, 0.25f, 0.25f));
-        terrainShader.SetInt("uTex", 0);
+        glm::vec3 sunDir = glm::normalize(glm::vec3(cos(sunAngle), sin(sunAngle), 0.25f));
+        glm::vec3 sunPos = sunDir * 500.0f;
 
-        terrain.Draw();
+        float dayFactor = glm::clamp((sunDir.y + 0.1f) / 1.1f, 0.0f, 1.0f);
 
-        // optional: draw debug info (sun marker) - not implemented here
+        glm::vec3 daySunColor = glm::vec3(1.0f, 0.95f, 0.85f);
+        glm::vec3 nightSunColor = glm::vec3(0.05f, 0.08f, 0.2f);
+        glm::vec3 sunColor = glm::mix(nightSunColor, daySunColor, dayFactor);
 
-        // swap buffers / poll
+        glm::vec3 ambientDay = glm::vec3(0.25f);
+        glm::vec3 ambientNight = glm::vec3(0.03f);
+        glm::vec3 ambient = glm::mix(ambientNight, ambientDay, dayFactor);
+
+        // ---------- Render Skybox ----------
+        if (okSkyShader) {
+            glDepthFunc(GL_LEQUAL);
+            glDepthMask(GL_FALSE);
+
+            glm::mat4 viewNoTrans = glm::mat4(glm::mat3(view));
+            skyShader.Use();
+            skyShader.SetMat4("uView", viewNoTrans);
+            skyShader.SetMat4("uProj", proj);
+            skyShader.SetInt("skybox", 0);
+            skyShader.SetFloat("uDayFactor", dayFactor);
+            skyShader.SetInt("uStars", 1);
+
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, sky.getCubemapID());
+
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, blackTex); // replace with star texture if available
+
+            sky.Draw(skyShader.ID);
+
+            glDepthMask(GL_TRUE);
+            glDepthFunc(GL_LESS);
+        }
+
+        // ---------- Render Terrain ----------
+        if (okTerrainShader && okTerrain) {
+            terrainShader.Use();
+            terrainShader.SetMat4("uView", view);
+            terrainShader.SetMat4("uProj", proj);
+            terrainShader.SetMat4("uModel", terrain.model);
+
+            terrainShader.SetVec3("lightPos", sunPos);
+            terrainShader.SetVec3("viewPos", gCamera.pos);
+            terrainShader.SetVec3("lightColor", sunColor);
+            terrainShader.SetVec3("ambientColor", ambient);
+            terrainShader.SetInt("uTex", 0);
+
+            glActiveTexture(GL_TEXTURE0);
+            terrain.Draw();
+        }
+
+        // swap + poll
         glfwSwapBuffers(gWindow);
         glfwPollEvents();
     }
 
-    // cleanup and exit
     glfwTerminate();
     return 0;
 }
+
 

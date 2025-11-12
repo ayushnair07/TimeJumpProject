@@ -99,9 +99,11 @@ bool Terrain::BuildFromImage(unsigned char* data, int w, int h, int channels,
             unsigned int b = j * w + (i + 1);
             unsigned int c = (j + 1) * w + i;
             unsigned int d = (j + 1) * w + (i + 1);
-            // triangle a,b,d and a,d,c
-            indices.push_back(a); indices.push_back(b); indices.push_back(d);
-            indices.push_back(a); indices.push_back(d); indices.push_back(c);
+
+            // triangle 1: a, c, b  (CCW)
+            indices.push_back(a); indices.push_back(c); indices.push_back(b);
+            // triangle 2: b, c, d  (CCW)
+            indices.push_back(b); indices.push_back(c); indices.push_back(d);
         }
     }
 
