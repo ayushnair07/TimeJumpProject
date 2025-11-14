@@ -9,13 +9,13 @@ MeshGL CreateUVSphere(int latSegments, int longSegments, float radius) {
 
     for (int y = 0; y <= latSegments; ++y) {
         float v = (float)y / (float)latSegments;
-        float theta = v * glm::pi<float>(); // 0..pi
+        float theta = v * glm::pi<float>(); 
         float sinTheta = sin(theta);
         float cosTheta = cos(theta);
 
         for (int x = 0; x <= longSegments; ++x) {
             float u = (float)x / (float)longSegments;
-            float phi = u * glm::two_pi<float>(); // 0..2pi
+            float phi = u * glm::two_pi<float>(); 
             float sinPhi = sin(phi);
             float cosPhi = cos(phi);
 

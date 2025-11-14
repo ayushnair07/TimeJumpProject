@@ -54,8 +54,7 @@ bool LoadOBJWithMaterials(const std::string& path, MeshGL_Model& outModel, const
     if (!err.empty()) std::cerr << "tinyobj err: " << err << "\n";
     if (!ok) return false;
 
-    // We'll expand vertices (no dedupe). Build global vertex array & indices,
-    // and create submesh ranges using per-face material ids.
+
     struct V { float px, py, pz; float nx, ny, nz; float u, v; };
     std::vector<V> vertices;
     std::vector<unsigned int> indices;

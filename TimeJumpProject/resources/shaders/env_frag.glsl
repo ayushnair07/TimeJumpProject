@@ -20,26 +20,21 @@ void main()
     // Calculate reflection vector
     vec3 R = reflect(-V, N); 
 
-    // --- THIS IS THE FIX ---
-    // 1. Sample the skybox for reflection
+
     vec3 reflectionColor = texture(skybox, R).rgb;
 
-    // 2. Apply the SAME night logic as skybox.frag
+
     float day = clamp(uDayFactor, 0.0, 1.0);
     vec3 nightTint = vec3(0.01, 0.02, 0.05); // The same dark blue
     float mixFactor = pow(day, 0.5);
     
-    // Mix the reflection color itself with the night tint
-    vec3 finalReflection = mix(nightTint, reflectionColor, mixFactor);
-    // --- END OF FIX ---
 
-    // Simple PBR-like mix
-    // A metallic surface (metal=1.0) uses the reflection color.
-    // A dielectric (metal=0.0) uses the baseColor.
+    vec3 finalReflection = mix(nightTint, reflectionColor, mixFactor);
+
+
     vec3 finalColor = mix(baseColor, finalReflection, metal);
     
-    // Apply a simple fresnel-like effect (more reflections at edges)
-    // This is a cheap approximation
+
     float fresnel = 1.0 - max(dot(N, V), 0.0);
     finalColor = mix(finalColor, finalReflection, fresnel * (1.0 - roughness));
 

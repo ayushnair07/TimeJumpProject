@@ -1,6 +1,5 @@
 // main.cpp
-// Full program: initializes, loads assets, runs day/night loop, shows HUD (FPS + controls).
-// Assumes: Shader, Terrain, Skybox (with getCubemapID()), Camera, TextRenderer exist.
+
 
 #include <iostream>
 #include <string>
@@ -41,15 +40,15 @@ GLuint sceneColorTex = 0;
 GLuint sceneDepthRBO = 0;
 GLuint quadVAO = 0, quadVBO = 0;
 Shader postShader;
-float jumpAnim = 0.0f;    // animated current value 0..1
-float jumpTarget = 0.0f;  // 0 or 1, set by T key
-bool timeJumpOn = false;  // logical toggle
+float jumpAnim = 0.0f;   
+float jumpTarget = 0.0f; 
+bool timeJumpOn = false; 
 // alt sky & textures
 
 Skybox skyDead;  // new alternative sky
 GLuint sandTexture = 0;
 GLuint terrainDefaultTex = 0; // store original terrain texture id
-// scene objects (kept in main for simplicity)
+
 Shader terrainShader, skyShader;
 Terrain terrain;
 Skybox sky;
@@ -75,6 +74,37 @@ TextRenderer ui;
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+
+
+struct SpotState {
+    glm::vec3 position = glm::vec3(0.0f, 40.0f, 0.0f);
+    glm::vec3 direction = glm::vec3(0.0f, -1.0f, 0.0f);
+    float innerAngleDeg = 12.0f;
+    float outerAngleDeg = 18.0f;
+    glm::vec3 color = glm::vec3(1.0f, 0.95f, 0.8f);
+    float intensity = 6.0f;
+    float constant = 1.0f;
+    float linear = 0.09f;
+    float quadratic = 0.032f;
+    bool enabled = true;
+};
+
+// single global spotlight you can toggle / move
+static SpotState gSpot;
+
+static void UploadSpotToShader(Shader& shader, const std::string& name, const SpotState& st) {
+    // assume shader.Use() already called
+    shader.SetVec3(name + ".position", st.position);
+    shader.SetVec3(name + ".direction", glm::normalize(st.direction));
+    shader.SetFloat(name + ".cutOff", cos(glm::radians(st.innerAngleDeg)));
+    shader.SetFloat(name + ".outerCutOff", cos(glm::radians(st.outerAngleDeg)));
+    shader.SetVec3(name + ".color", st.color);
+    shader.SetFloat(name + ".intensity", st.intensity);
+    shader.SetFloat(name + ".constant", st.constant);
+    shader.SetFloat(name + ".linear", st.linear);
+    shader.SetFloat(name + ".quadratic", st.quadratic);
+    shader.SetInt(name + ".enabled", st.enabled ? 1 : 0);
+}
 
 // ----------------- Helper: find resources folder -----------------
 static std::string GetResourcePath(const std::string& relativePath) {
@@ -315,6 +345,11 @@ GetResourcePath("resources/skybox_dry/back.png")
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
 
+    // Example: attach spot to camera: place this after gCamera has been set up
+    gSpot.position = gCamera.pos + glm::vec3(0.0f, 0.5f, 0.0f);   // just above camera
+    gSpot.direction = gCamera.front; // if your camera has a 'front' vector
+    gSpot.enabled = true;
+
 
     //bool uiReady = false;
     //if (ui.Init(WIN_W, WIN_H)) {
@@ -356,7 +391,7 @@ GetResourcePath("resources/skybox_dry/back.png")
         glm::mat4 proj = gCamera.GetProjection(aspect);
 
         // ---------- Day / Night ----------
-        const float dayLength = 60.0f;
+        const float dayLength = 180.0f;
         float cycle = fmod(globalTime / dayLength, 1.0f);
         float sunAngle = cycle * glm::two_pi<float>();
         glm::vec3 sunDir = glm::normalize(glm::vec3(cos(sunAngle), sin(sunAngle), 0.25f));
@@ -386,6 +421,13 @@ GetResourcePath("resources/skybox_dry/back.png")
             terrainShader.SetMat4("uView", view);
             terrainShader.SetMat4("uProj", proj);
             terrainShader.SetMat4("uModel", terrain.model);
+
+            bool attachSpotToCamera = true;
+            if (attachSpotToCamera) {
+                gSpot.position = gCamera.pos + glm::vec3(0.0f, 0.5f, 0.0f);
+                gSpot.direction = gCamera.front; // adapt to your camera API
+                UploadSpotToShader(terrainShader, "spot", gSpot);
+            }
             
             terrainShader.SetVec3("lightPos", sunPos);
             terrainShader.SetVec3("viewPos", gCamera.pos);
@@ -457,7 +499,7 @@ GetResourcePath("resources/skybox_dry/back.png")
             sunShader.SetMat4("uModel", sunModel);
             sunShader.SetMat4("uView", view);
             sunShader.SetMat4("uProj", proj);
-            sunShader.SetVec3("uSunColor", sunObjectColor); // *** MODIFIED *** Use the bright object color
+            sunShader.SetVec3("uSunColor", sunObjectColor);
 
             glBindVertexArray(sunSphere.VAO);
             glDrawElements(GL_TRIANGLES, sunSphere.indexCount, GL_UNSIGNED_INT, 0);
@@ -470,9 +512,6 @@ GetResourcePath("resources/skybox_dry/back.png")
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        // --------------------------
-        // 2) POST-PROCESS PASS -> sample sceneColorTex and draw fullscreen quad
-        // --------------------------
         glDisable(GL_DEPTH_TEST);
         postShader.Use();
         glActiveTexture(GL_TEXTURE0);

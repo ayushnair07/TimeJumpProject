@@ -3,8 +3,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 
-// Include your Terrain header so the compiler can find Terrain::GetHeightAt
-#include "Terrain.h"   // adjust path as needed
+#include "Terrain.h" 
 
 TreeInstancer::TreeInstancer() : instanceVBO(0) {}
 TreeInstancer::~TreeInstancer() {
@@ -31,8 +30,8 @@ void TreeInstancer::GenerateInstances(int count,
     for (int i = 0; i < count; ++i) {
         float x = distX(rng);
         float z = distZ(rng);
-        float y = terrain.GetHeightAt(x, z); // make sure Terrain has this method public
-        if (!std::isfinite(y)) continue;      // skip if terrain returned invalid height
+        float y = terrain.GetHeightAt(x, z);
+        if (!std::isfinite(y)) continue;  
 
         glm::mat4 M(1.0f);
         M = glm::translate(M, glm::vec3(x, y, z));
@@ -50,7 +49,7 @@ void TreeInstancer::UploadInstancesToGPU(const MeshGL_Model& mesh) {
     glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
     glBufferData(GL_ARRAY_BUFFER, mats.size() * sizeof(glm::mat4), mats.data(), GL_STATIC_DRAW);
 
-    // set attribute locations 3,4,5,6 (4 vec4 per mat)
+
     std::size_t vec4Size = sizeof(glm::vec4);
     for (int i = 0; i < 4; i++) {
         glEnableVertexAttribArray(3 + i);
@@ -68,7 +67,6 @@ void TreeInstancer::DrawInstanced(const MeshGL_Model& mesh, int instanceCount)
 
     glBindVertexArray(mesh.VAO);
 
-    // Use simple instanced draw. This is widely supported:
     glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)mesh.indexCount, GL_UNSIGNED_INT, 0, instanceCount);
 
     glBindVertexArray(0);

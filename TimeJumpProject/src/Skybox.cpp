@@ -100,15 +100,15 @@ bool Skybox::Load(const std::vector<std::string>& faces) {
 }
 
 void Skybox::Draw(unsigned int shaderID, GLuint overrideCubemap) {
-    glDepthFunc(GL_LEQUAL); // allow skybox to pass depth test at depth == 1.0
+    glDepthFunc(GL_LEQUAL); 
     glUseProgram(shaderID);
 
-    // let caller override which cubemap texture to use
+  
     GLuint toBind = (overrideCubemap != 0) ? overrideCubemap : cubemapTex;
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, toBind);
-    // shader sampler should be at location 0 (set once)
+
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);

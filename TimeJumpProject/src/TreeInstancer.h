@@ -8,15 +8,14 @@
 #include "ModelLoader.h"
 
 
-class Terrain; // forward declare your Terrain class
+class Terrain;
 
 class TreeInstancer {
 public:
     TreeInstancer();
     ~TreeInstancer();
 
-    // generate 'count' model matrices randomly inside bounds (minX..maxX, minZ..maxZ)
-    // uses Terrain::GetHeightAt(x,z) to place trees on terrain. Provide min/max scale.
+
     void GenerateInstances(int count,
         float minX, float maxX,
         float minZ, float maxZ,
@@ -26,7 +25,6 @@ public:
     // uploads mats[] to GPU (creates instanceVBO if needed)
     void UploadInstancesToGPU(const MeshGL_Model& mesh);
 
-    // draw the mesh with instancing (assumes shader already in use and mesh bound)
     // instanceCount = number of instances generated
     void DrawInstanced(const MeshGL_Model& mesh, int instanceCount);
 

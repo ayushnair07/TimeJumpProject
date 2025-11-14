@@ -77,7 +77,6 @@ bool TextRenderer::Init(int screenW, int screenH) {
 
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    // allocate a moderate dynamic buffer (enough for many glyphs)
     glBufferData(GL_ARRAY_BUFFER, 128 * 1024, nullptr, GL_DYNAMIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);

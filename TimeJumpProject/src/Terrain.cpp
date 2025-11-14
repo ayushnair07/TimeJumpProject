@@ -3,7 +3,7 @@
 #include <iostream>
 #include <cmath>
 
-// simple single-channel loader assumes stb_image is included in project
+
 Terrain::Terrain() {}
 Terrain::~Terrain() {
     if (VAO) glDeleteVertexArrays(1, &VAO);
@@ -174,9 +174,7 @@ void Terrain::Draw() {
 float Terrain::GetHeightAt(float worldX, float worldZ) const {
     if (hmWidth <= 0 || hmHeight <= 0 || hmData.empty()) return NAN;
 
-    // Map worldX/worldZ into [0, hmWidth-1] / [0, hmHeight-1] image coordinates
-    // Assume terrain is centered at origin. If your terrain origin is different,
-    // adapt accordingly.
+
     float halfX = worldSizeX * 0.5f;
     float halfZ = worldSizeZ * 0.5f;
 

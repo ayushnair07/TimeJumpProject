@@ -9,7 +9,7 @@ public:
     ~Skybox();
     // faces: order -> right, left, top, bottom, front, back
     bool Load(const std::vector<std::string>& faces);
-    void Draw(unsigned int shaderID, GLuint overrideCubemap = 0); // shader should be bound and have samplerCube=0
+    void Draw(unsigned int shaderID, GLuint overrideCubemap = 0); 
     GLuint getCubemapID() const { return cubemapTex; }
 private:
     unsigned int cubemapTex = 0;

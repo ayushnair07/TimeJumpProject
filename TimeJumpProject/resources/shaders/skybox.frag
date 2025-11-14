@@ -23,9 +23,6 @@ void main() {
     float day = clamp(uDayFactor, 0.0, 1.0);
     float night = 1.0 - day;
 
-    // --- REVISED LOGIC ---
-    // At night, we want a dark tint. In day, we want the skybox color.
-    // We will mix between them.
     vec3 nightTint = vec3(0.01, 0.02, 0.05); // Made this darker
     
     // Use a power curve (pow(day, 0.5)) so the sun
@@ -37,7 +34,6 @@ void main() {
 
     vec3 starColor = vec3(0.0);
     if (night > 0.05) {
-        // ... (same star logic as before)
         float u = 0.5 + atan(TexCoords.z, TexCoords.x) / (2.0 * 3.14159265);
         float v = 0.5 - asin(clamp(TexCoords.y, -1.0, 1.0)) / 3.14159265;
         vec3 stars = texture(uStars, vec2(u, v)).rgb; 
