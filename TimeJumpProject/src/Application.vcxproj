@@ -134,18 +134,43 @@
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="EnvSphere.cpp" />
     <ClCompile Include="glad.c" />
+    <ClCompile Include="ModelLoader.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="Skybox.cpp" />
     <ClCompile Include="stb_impl.cpp" />
     <ClCompile Include="Terrain.cpp" />
+    <ClCompile Include="TextRenderer.cpp" />
+    <ClCompile Include="TextureLoader.cpp" />
+    <ClCompile Include="tinyobj_impl.cpp" />
+    <ClCompile Include="TreeInstancer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="EnvSphere.h" />
+    <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="Skybox.h" />
     <ClInclude Include="stb_image.h" />
+    <ClInclude Include="stb_image_write.h" />
+    <ClInclude Include="stb_truetype.h" />
     <ClInclude Include="Terrain.h" />
+    <ClInclude Include="TextRenderer.h" />
+    <ClInclude Include="tiny_obj_loader.h" />
+    <ClInclude Include="TreeInstancer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\resources\shaders\env_frag.glsl" />
+    <None Include="..\resources\shaders\env_vert.glsl" />
+    <None Include="..\resources\shaders\skybox.frag" />
+    <None Include="..\resources\shaders\skybox.vert" />
+    <None Include="..\resources\shaders\sun.frag" />
+    <None Include="..\resources\shaders\sun.vert" />
+    <None Include="..\resources\shaders\terrain.frag" />
+    <None Include="..\resources\shaders\terrain.vert" />
+    <None Include="..\resources\shaders\tree_inst.frag" />
+    <None Include="..\resources\shaders\tree_inst.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

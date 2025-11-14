@@ -10,8 +10,7 @@ Skybox::~Skybox() {
 
 bool Skybox::BuildCube() {
     float skyboxVertices[] = {
-        // positions
-        -1.0f,  1.0f, -1.0f,
+       -1.0f,  1.0f, -1.0f,
         -1.0f, -1.0f, -1.0f,
          1.0f, -1.0f, -1.0f,
          1.0f, -1.0f, -1.0f,
@@ -75,7 +74,7 @@ bool Skybox::Load(const std::vector<std::string>& faces) {
 
     glGenTextures(1, &cubemapTex);
     glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTex);
-
+    std::cerr << cubemapTex;
     int w, h, n;
     stbi_set_flip_vertically_on_load(false);
     for (unsigned int i = 0; i < faces.size(); ++i) {
@@ -101,13 +100,10 @@ bool Skybox::Load(const std::vector<std::string>& faces) {
 }
 
 void Skybox::Draw(unsigned int shaderID) {
-    glDepthFunc(GL_LEQUAL); // allow skybox to pass depth test at depth == 1.0
     glUseProgram(shaderID);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTex);
-    // shader sampler should be at location 0 (set once)
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
-    glDepthFunc(GL_LESS);
 }
+
+

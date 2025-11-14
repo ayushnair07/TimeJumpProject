@@ -1,6 +1,7 @@
 #include "Terrain.h"
 #include <stb_image.h>
 #include <iostream>
+#include <cmath>
 
 // simple single-channel loader assumes stb_image is included in project
 Terrain::Terrain() {}
@@ -11,37 +12,70 @@ Terrain::~Terrain() {
     if (textureID) glDeleteTextures(1, &textureID);
 }
 
-bool Terrain::Load(const std::string& heightmapPath, const std::string& texturePath,
-    float heightScale, float size)
+bool Terrain::Load(const std::string& heightmapPath,
+    const std::string& texturePath,
+    float heightScale,
+    float size)
 {
-    int comp;
+    // --- load heightmap (grayscale) ---
+    int comp = 0;
     stbi_set_flip_vertically_on_load(false);
-    unsigned char* data = stbi_load(heightmapPath.c_str(), &width, &height, &comp, 1);
+    unsigned char* data = stbi_load(heightmapPath.c_str(), &width, &height, &comp, 1); // force 1 channel
     if (!data) {
         std::cerr << "Terrain: failed to load heightmap: " << heightmapPath << "\n";
         return false;
     }
+
+    // store normalized height values for GetHeightAt()
+    hmWidth = width;
+    hmHeight = height;
+    hmData.resize((size_t)hmWidth * (size_t)hmHeight);
+    for (int i = 0; i < hmWidth * hmHeight; ++i) {
+        hmData[i] = (float)data[i] / 255.0f;
+    }
+
+    // save scale/size (used by GetHeightAt())
+    worldScaleY = heightScale;
+    worldSizeX = size;
+    worldSizeZ = size;
+
+    // Build mesh from image (your existing helper)
     if (!BuildFromImage(data, width, height, 1, heightScale, size)) {
-        stbi_image_free(data); return false;
+        stbi_image_free(data);
+        return false;
     }
     stbi_image_free(data);
 
-    // load texture (albedo)
-    int tw, th, tc;
+    // --- load albedo texture ---
+    int tw = 0, th = 0, tc = 0;
     unsigned char* tdata = stbi_load(texturePath.c_str(), &tw, &th, &tc, 0);
-    if (!tdata) { std::cerr << "Terrain: failed to load texture: " << texturePath << "\n"; return false; }
-    GLenum fmt = (tc == 3 ? GL_RGB : GL_RGBA);
-    glGenTextures(1, &textureID);
+    if (!tdata) {
+        std::cerr << "Terrain: failed to load texture: " << texturePath << "\n";
+        return false;
+    }
+
+    // Set pixel unpack alignment for safety (in case row stride not multiple of 4)
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    GLenum extFormat = (tc == 3 ? GL_RGB : GL_RGBA);
+    GLenum internalFormat = (tc == 3 ? GL_RGB8 : GL_RGBA8);
+
+    if (textureID == 0) glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_2D, textureID);
-    glTexImage2D(GL_TEXTURE_2D, 0, fmt, tw, th, 0, fmt, GL_UNSIGNED_BYTE, tdata);
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, tw, th, 0, extFormat, GL_UNSIGNED_BYTE, tdata);
     glGenerateMipmap(GL_TEXTURE_2D);
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
     stbi_image_free(tdata);
 
-    // create VAO/VBO/EBO buffer interleaved: pos(3), normal(3), uv(2)
+    // restore default alignment
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+
+    // --- create VAO/VBO/EBO from positions/normals/uvs/indices ---
     struct Vertex { glm::vec3 p; glm::vec3 n; glm::vec2 uv; };
     std::vector<Vertex> verts;
     verts.reserve(positions.size());
@@ -49,28 +83,32 @@ bool Terrain::Load(const std::string& heightmapPath, const std::string& textureP
         verts.push_back({ positions[i], normals[i], uvs[i] });
     }
 
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
+    // Delete old buffers if they exist (optional, safe)
+    if (VAO == 0) glGenVertexArrays(1, &VAO);
+    if (VBO == 0) glGenBuffers(1, &VBO);
+    if (EBO == 0) glGenBuffers(1, &EBO);
 
     glBindVertexArray(VAO);
+
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(Vertex), verts.data(), GL_STATIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
-    // layout
-    glEnableVertexAttribArray(0); // pos
+    // layout: pos(0), normal(1), uv(2)
+    glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, p));
-    glEnableVertexAttribArray(1); // normal
+    glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, n));
-    glEnableVertexAttribArray(2); // uv
+    glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
 
     glBindVertexArray(0);
+
     return true;
 }
+
 
 bool Terrain::BuildFromImage(unsigned char* data, int w, int h, int channels,
     float heightScale, float size)
@@ -132,3 +170,47 @@ void Terrain::Draw() {
     glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 }
+
+float Terrain::GetHeightAt(float worldX, float worldZ) const {
+    if (hmWidth <= 0 || hmHeight <= 0 || hmData.empty()) return NAN;
+
+    // Map worldX/worldZ into [0, hmWidth-1] / [0, hmHeight-1] image coordinates
+    // Assume terrain is centered at origin. If your terrain origin is different,
+    // adapt accordingly.
+    float halfX = worldSizeX * 0.5f;
+    float halfZ = worldSizeZ * 0.5f;
+
+    // Convert world coords to local [0..1] uv over the terrain
+    float u = (worldX + halfX) / worldSizeX; // 0..1
+    float v = (worldZ + halfZ) / worldSizeZ; // 0..1
+
+    // if outside, return NAN
+    if (u < 0.0f || u > 1.0f || v < 0.0f || v > 1.0f) return NAN;
+
+    // map to pixel space
+    float fx = u * (hmWidth - 1);
+    float fz = v * (hmHeight - 1);
+
+    int x0 = (int)floor(fx);
+    int z0 = (int)floor(fz);
+    int x1 = std::min(x0 + 1, hmWidth - 1);
+    int z1 = std::min(z0 + 1, hmHeight - 1);
+
+    float sx = fx - (float)x0; // frac in x
+    float sz = fz - (float)z0; // frac in z
+
+    // sample four heights
+    float h00 = hmData[z0 * hmWidth + x0];
+    float h10 = hmData[z0 * hmWidth + x1];
+    float h01 = hmData[z1 * hmWidth + x0];
+    float h11 = hmData[z1 * hmWidth + x1];
+
+    // bilinear interpolation
+    float hx0 = h00 * (1.0f - sx) + h10 * sx;
+    float hx1 = h01 * (1.0f - sx) + h11 * sx;
+    float h = hx0 * (1.0f - sz) + hx1 * sz;
+
+    // convert from normalized 0..1 to world Y units
+    return h * worldScaleY;
+}
+

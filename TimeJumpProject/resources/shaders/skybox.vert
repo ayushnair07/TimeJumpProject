@@ -8,7 +8,14 @@ uniform mat4 uProj;
 
 void main() {
     TexCoords = aPos;
-    // remove translation from view matrix
-    mat4 rotView = mat4(mat3(uView));
-    gl_Position = uProj * rotView * vec4(aPos, 1.0);
+    
+    // 1. Remove translation from view matrix
+    mat4 rotView = mat4(mat3(uView)); 
+    
+    // 2. Calculate position
+    vec4 pos = uProj * rotView * vec4(aPos, 1.0);
+    
+    // 3. THE FIX: Set z to w. 
+    // When OpenGL performs perspective divide (z / w), the result will be 1.0 (maximum depth).
+    gl_Position = pos.xyww; 
 }

@@ -16,9 +16,12 @@ public:
         float heightScale = 20.0f, float size = 100.0f);
 
     void Draw(); // binds texture and draws mesh
-
+    float GetHeightAt(float worldX, float worldZ) const;
     // optional transform
     glm::mat4 model = glm::mat4(1.0f);
+
+    void SetTexture(GLuint tex) { textureID = tex; }
+    GLuint GetTexture() const { return textureID; }
 
 private:
     bool BuildFromImage(unsigned char* data, int w, int h, int channels,
@@ -32,4 +35,12 @@ private:
     std::vector<glm::vec3> normals;
     std::vector<glm::vec2> uvs;
     std::vector<unsigned int> indices;
+        int hmWidth = 0;
+    int hmHeight = 0;
+    std::vector<float> hmData; // row-major: hmData[row*hmWidth + col]
+    float worldScaleY = 25.0f; // how heightmap values map to world Y
+    float worldSizeX = 200.0f; // X dimension in world units (full terrain width)
+    float worldSizeZ = 200.0f; // Z dimension in world units (full terrain depth)
 };
+
+
