@@ -476,7 +476,8 @@ GetResourcePath("resources/skybox_dry/back.png")
             skyShader.SetMat4("uView", viewNoTrans);
             skyShader.SetMat4("uProj", proj);
             skyShader.SetFloat("uDayFactor", dayFactor);
-            skyShader.SetInt("skybox", 0); // sampler unit 0
+            skyShader.SetInt("skybox", 0);  
+            skyShader.SetInt("uStars", 1);
 
  
             glActiveTexture(GL_TEXTURE0);
@@ -484,7 +485,8 @@ GetResourcePath("resources/skybox_dry/back.png")
 
             // now call Draw with overrideCubemap
             sky.Draw(skyShader.ID, cubemapToUse);
-
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, blackTex);
             glDepthMask(GL_TRUE);
             glDepthFunc(GL_LESS);
         }

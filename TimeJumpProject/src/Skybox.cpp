@@ -100,19 +100,29 @@ bool Skybox::Load(const std::vector<std::string>& faces) {
 }
 
 void Skybox::Draw(unsigned int shaderID, GLuint overrideCubemap) {
-    glDepthFunc(GL_LEQUAL); 
+    glDepthFunc(GL_LEQUAL);
     glUseProgram(shaderID);
 
-  
+    // set expected sampler uniforms explicitly (defensive)
+    GLint locSky = glGetUniformLocation(shaderID, "skybox");
+    if (locSky >= 0) glUniform1i(locSky, 0);   // samplerCube bound to unit 0
+
+    GLint locStars = glGetUniformLocation(shaderID, "uStars");
+    if (locStars >= 0) glUniform1i(locStars, 1); // sampler2D bound to unit 1
+
     GLuint toBind = (overrideCubemap != 0) ? overrideCubemap : cubemapTex;
 
+    // bind cubemap to unit 0
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, toBind);
+
+
 
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
     glDepthFunc(GL_LESS);
 }
+
 
 
