@@ -223,11 +223,11 @@ int main() {
     okTerrain = terrain.Load(
         GetResourcePath("resources/textures/heightmap.png"),
         GetResourcePath("resources/textures/grass.jpg"),
-        25.0f, 200.0f
+        25.0f, 400.0f
     );
     if (!okTerrain) std::cerr << "ERROR: terrain failed to load\n";
 
-    // load tree mesh (adjust path)
+
     MeshGL_Model treeMesh;
     if (!LoadOBJWithMaterials(GetResourcePath("resources/models/Tree1.obj"), treeMesh)) {
         std::cerr << "Failed to load Tree1.obj\n";
@@ -237,18 +237,17 @@ int main() {
             << " materials: " << treeMesh.materials.size() << "\n";
     }
 
-    // compile tree shader (same pattern as others)
+
     treeShader.LoadFromFiles(GetResourcePath("resources/shaders/tree_inst.vert"), GetResourcePath("resources/shaders/tree_inst.frag"));
     GLuint treeShaderID = treeShader.ID;
 
-    // generate instances across terrain bounds (adapt bounds to your terrain)
-   // TreeInstancer inst;
-    //TreeInstancer instancer;
-    //inst.GenerateInstances(200, -90.0f, 90.0f, -90.0f, 90.0f, terrain, 0.4f, 1.0f);
-    //inst.UploadInstancesToGPU(treeMesh);
 
-    // in render loop (after setting uView/uProj/uModel and using appropriate shader)
+    TreeInstancer inst;
+    TreeInstancer instancer;
+    inst.GenerateInstances(100, -90.0f, 90.0f, -90.0f, 90.0f, terrain, 0.4f, 1.0f);
+    inst.UploadInstancesToGPU(treeMesh);
 
+ 
 
 
     // ---------- Load skybox ----------
@@ -316,12 +315,12 @@ GetResourcePath("resources/skybox_dry/back.png")
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
 
-    // ---------- Optional UI (text) ----------
-    bool uiReady = false;
-    if (ui.Init(WIN_W, WIN_H)) {
-        uiReady = ui.LoadFont(GetResourcePath("resources/fonts/atlas.png"), 16, 16);
-        if (!uiReady) std::cerr << "Warning: font atlas missing - HUD disabled\n";
-    }
+
+    //bool uiReady = false;
+    //if (ui.Init(WIN_W, WIN_H)) {
+    //    uiReady = ui.LoadFont(GetResourcePath("resources/fonts/atlas.png"), 16, 16);
+    //    if (!uiReady) std::cerr << "Warning: font atlas missing - HUD disabled\n";
+    //}
 
     // timing
     auto startTime = std::chrono::high_resolution_clock::now();
@@ -424,25 +423,28 @@ GetResourcePath("resources/skybox_dry/back.png")
 
 
          //---------- Skybox (draw last) ----------
+        GLuint cubemapToUse = (timeJumpOn ? skyDead.getCubemapID() : sky.getCubemapID());
+
         if (okSkyShader) {
             glDepthFunc(GL_LEQUAL);
             glDepthMask(GL_FALSE);
+
             glm::mat4 viewNoTrans = glm::mat4(glm::mat3(view));
             skyShader.Use();
-            int loc = glGetUniformLocation(skyShader.ID, "skybox"); // shader name must match
-                        skyShader.SetMat4("uView", viewNoTrans);
+            skyShader.SetMat4("uView", viewNoTrans);
             skyShader.SetMat4("uProj", proj);
             skyShader.SetFloat("uDayFactor", dayFactor);
-            skyShader.SetInt("skybox", 0);
-            
-                        // choose which cubemap to use (day or swapped night)
-            GLuint cubemapToUse = (timeJumpOn ? skyDead.getCubemapID() : sky.getCubemapID());
+            skyShader.SetInt("skybox", 0); // sampler unit 0
+
+ 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapToUse);
-            sky.Draw(skyShader.ID);
+
+            // now call Draw with overrideCubemap
+            sky.Draw(skyShader.ID, cubemapToUse);
+
             glDepthMask(GL_TRUE);
             glDepthFunc(GL_LESS);
-            
         }
 
         if (okSunShader && dayFactor > 0.0f) {
@@ -510,32 +512,32 @@ GetResourcePath("resources/skybox_dry/back.png")
             fpsTimer = 0.0;
         }
 
-        if (uiReady) {
-            char buf[64];
-            snprintf(buf, sizeof(buf), "FPS: %.0f", fpsValue);
-            std::string fpsStr = buf;
+        //if (uiReady) {
+        //    char buf[64];
+        //    snprintf(buf, sizeof(buf), "FPS: %.0f", fpsValue);
+        //    std::string fpsStr = buf;
 
-            float scale = 1.0f;
-            float charW = 8.0f * scale;
-            float padding = 8.0f;
-            float textWidth = (float)fpsStr.size() * charW;
-            float x = (float)WIN_W - textWidth - padding;
-            float y = padding + 2.0f;
+        //    float scale = 1.0f;
+        //    float charW = 8.0f * scale;
+        //    float padding = 8.0f;
+        //    float textWidth = (float)fpsStr.size() * charW;
+        //    float x = (float)WIN_W - textWidth - padding;
+        //    float y = padding + 2.0f;
 
-            ui.RenderText(fpsStr, x, y, scale, glm::vec3(1.0f, 1.0f, 1.0f));
+        //    ui.RenderText(fpsStr, x, y, scale, glm::vec3(1.0f, 1.0f, 1.0f));
 
-            std::vector<std::string> controls = {
-                "Controls:",
-                "F - toggle camera",
-                "WASD - move (free)",
-                "Q/E - up/down",
-                "T - time jump"
-            };
-            float y2 = y + 18.0f;
-            for (size_t i = 0; i < controls.size(); ++i) {
-                ui.RenderText(controls[i], x, y2 + i * 14.0f, 0.8f, glm::vec3(0.95f, 0.9f, 0.6f));
-            }
-        }
+        //    std::vector<std::string> controls = {
+        //        "Controls:",
+        //        "F - toggle camera",
+        //        "WASD - move (free)",
+        //        "Q/E - up/down",
+        //        "T - time jump"
+        //    };
+        //    float y2 = y + 18.0f;
+        //    for (size_t i = 0; i < controls.size(); ++i) {
+        //        ui.RenderText(controls[i], x, y2 + i * 14.0f, 0.8f, glm::vec3(0.95f, 0.9f, 0.6f));
+        //    }
+        //}
 
         //if (treeInstanceCount > 0) {
 
